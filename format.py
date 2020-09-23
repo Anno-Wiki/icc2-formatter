@@ -86,11 +86,7 @@ def annotate(text, delim):
             data['open'] = i - offset
             offset += 1
             m = re.search(char, text[i+1:])
-            try:
-                close = m.start(0)
-            except:
-                print(text[i:i+100])
-                sys.exit()
+            close = m.start(0)
             data['close'] = i + close + 1 - offset
             offset += 1
             annotations.append(data)
