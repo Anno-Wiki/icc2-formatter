@@ -60,6 +60,7 @@ def annotate(text, delim):
     """
     offset = 0
     annotations = []
+    DEAD = [-1]
     for i, char in enumerate(text):
         if char == delim[0] and text[i+1] != '/':
             # We have a delimiter
@@ -72,20 +73,27 @@ def annotate(text, delim):
                 data = TAGS[tag].copy()
                 data['open'] = i - offset
                 offset += len(tag)
-                close = re.search(CLOSERS[tag], text[i+len(tag):]).span()
-                data['close'] = close[0] - offset
+                m = re.search(CLOSERS[tag], text[i:])
+                close = m.start(0)
+                data['close'] = close + i - offset
                 offset += len(CLOSERS[tag])
                 annotations.append(data)
             else:
                 raise InputError(text[i:i+30], "Malformed tag.")
-        elif char == '*' or char == '_':
+        elif char == '*' or char == '_' and DEAD[-1] != i:
             data = TAGS[char].copy()
             data['open'] = i - offset
             offset += 1
-            close = re.search(char, text[i+1:]).span()
-            data['close'] = close[0] - offset
+            m = re.search(char, text[i+1:])
+            try:
+                close = m.start(0)
+            except:
+                print(text[i:i+100])
+                sys.exit()
+            data['close'] = i + close + 1 - offset
             offset += 1
             annotations.append(data)
+            DEAD.append(i + close + 1)
     return annotations
 
 
