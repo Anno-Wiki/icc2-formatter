@@ -2,6 +2,7 @@ import sys
 import re
 import argparse
 import yaml
+import time
 
 from collections import deque
 
@@ -108,7 +109,6 @@ def process(text, metadata):
 
     preparetags(metadata['toc'], delimiter)
     annotations = annotate(text, delimiter)
-    print(annotations)
 
 
 def main(fin, metadata_in):
