@@ -7,6 +7,7 @@ import json
 
 from collections import deque
 
+# Default delimiters
 DELIMITERS = {
     'parens':   ['(', ')'],
     'braces':   ['{', '}'],
@@ -14,21 +15,17 @@ DELIMITERS = {
     'angles':   ['<', '>'],
 }
 
+# Global tags to be prepared for searching, payload for annotations
 TAGS = {
     '*': {'type': 'style', 'tag': 'bold'},
     '_': {'type': 'style', 'tag': 'italics'},
 }
 
+# Matching closer tags for searching
 CLOSERS = {}
 
+# Default text chunk size
 TEXTSIZE = 100000
-
-
-class InputError(Exception):
-    """An error to be raised on malformed input"""
-    def __init__(self, expression, message):
-        self.expression = expression
-        self.message = message
 
 
 def preparetags(toc, delim):
@@ -65,13 +62,14 @@ def annotate(text, delim):
     the markup.
     """
     annotations = []
-    regex = ''.join([tag + '|' for tag in TAGS.keys()])[1:-1]
-    regex = r'\*' + regex
+    regex = '|'.join(TAGS.keys())
+    regex = f'\{regex}'
     print(f"Opener search string: \"{regex}\"")
 
     offset = 0
     i = 0
     while m := re.search(regex, text[i:]):
+        # Opening tag
         match = m.group(0)
         matchloc = m.start(0)
         payload = TAGS[match].copy()
@@ -80,6 +78,7 @@ def annotate(text, delim):
         i += len(match)     # skip the tag
         offset += len(match)    # add the tag length to the offset
 
+        # Now closing tag
         m = re.search(CLOSERS[match], text[i:])
         match = m.group(0)
         matchloc = m.start(0)
@@ -134,11 +133,16 @@ def process(text, metadata):
         # delimiter is symmetric
         delimiter = [md, md]
 
+    print('Preparing tags...')
     preparetags(metadata['toc'], delimiter)
+    print(TAGS.keys())
+    print("Preparing annotations...")
     annotations = annotate(text, delimiter)
 
+    print("Stripping markup...")
     text = strip(text)
 
+    print("Splitting text into chunks...")
     text = split(text)
 
     return text, annotations
