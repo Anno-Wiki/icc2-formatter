@@ -3,6 +3,7 @@ import re
 import argparse
 import yaml
 import time
+import json
 
 from collections import deque
 
@@ -19,6 +20,8 @@ TAGS = {
 }
 
 CLOSERS = {}
+
+TEXTSIZE = 100000
 
 
 class InputError(Exception):
@@ -52,6 +55,8 @@ def preparetags(toc, delim):
             'name': name
         }
         CLOSERS[opener] = closer
+    CLOSERS['*'] = r'\*'
+    CLOSERS['_'] = '_'
 
 
 def annotate(text, delim):
@@ -59,39 +64,65 @@ def annotate(text, delim):
     ranges and nature of the stretch of text. They will be used later to strip
     the markup.
     """
-    offset = 0
     annotations = []
-    DEAD = [-1]
-    for i, char in enumerate(text):
-        if char == delim[0] and text[i+1] != '/':
-            # We have a delimiter
-            found = False
-            for tag in TAGS.keys():
-                if text[i:i+len(tag)] == tag:
-                    found = True
-                    break
-            if found:
-                data = TAGS[tag].copy()
-                data['open'] = i - offset
-                offset += len(tag)
-                m = re.search(CLOSERS[tag], text[i:])
-                close = m.start(0)
-                data['close'] = close + i - offset
-                offset += len(CLOSERS[tag])
-                annotations.append(data)
-            else:
-                raise InputError(text[i:i+30], "Malformed tag.")
-        elif char == '*' or char == '_' and DEAD[-1] != i:
-            data = TAGS[char].copy()
-            data['open'] = i - offset
-            offset += 1
-            m = re.search(char, text[i+1:])
-            close = m.start(0)
-            data['close'] = i + close + 1 - offset
-            offset += 1
-            annotations.append(data)
-            DEAD.append(i + close + 1)
+    regex = ''.join([tag + '|' for tag in TAGS.keys()])[1:-1]
+    regex = r'\*' + regex
+    print(f"Opener search string: \"{regex}\"")
+
+    offset = 0
+    i = 0
+    while m := re.search(regex, text[i:]):
+        match = m.group(0)
+        matchloc = m.start(0)
+        payload = TAGS[match].copy()
+        i += matchloc   # skip to location of the match
+        payload['open'] = i - offset   # subtract the length of tags seen so far
+        i += len(match)     # skip the tag
+        offset += len(match)    # add the tag length to the offset
+
+        m = re.search(CLOSERS[match], text[i:])
+        match = m.group(0)
+        matchloc = m.start(0)
+        # same as before
+        i += matchloc
+        payload['close'] = i - offset
+        i += len(match)
+        offset += len(match)
+
+        annotations.append(payload)
+
     return annotations
+
+
+def strip(text):
+    """Strip all markup from the text."""
+    # Strip markup
+    for tag in TAGS.keys():
+        text = text.replace(tag, '')
+
+    # These two are already gone from the previous loop
+    del CLOSERS['*']
+    del CLOSERS['_']
+
+    # Strip close tags
+    for tag in CLOSERS.values():
+        text = text.replace(tag, '')
+
+    return text
+
+
+def split(text):
+    chunks = []
+    sequence = 0
+    for i in range(0, len(text), TEXTSIZE):
+        chunks.append({
+            'offset': i,
+            'text': text[i:i+TEXTSIZE],
+            'sequence': sequence
+        })
+        sequence += 1
+    return chunks
+
 
 
 def process(text, metadata):
@@ -106,13 +137,24 @@ def process(text, metadata):
     preparetags(metadata['toc'], delimiter)
     annotations = annotate(text, delimiter)
 
+    text = strip(text)
+
+    text = split(text)
+
+    return text, annotations
+
 
 def main(fin, metadata_in):
     """Main route, to be called when run from command line."""
     metadata = yaml.load(metadata_in, yaml.CLoader)
     text = fin.read()
     fin.close()
-    process(text, metadata)
+    text, annotations = process(text, metadata)
+
+    with open('text.json', 'wt') as fout:
+        json.dump(text, fout)
+    with open('annotations.json', 'wt') as fout:
+        json.dump(annotations, fout)
 
 
 if __name__ == "__main__":
