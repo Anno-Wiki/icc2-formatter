@@ -25,7 +25,7 @@ TAGS = {
 CLOSERS = {}
 
 # Default text chunk size
-TEXTSIZE = 100000
+CHUNKSIZE = 100000
 
 
 def preparetags(toc, delim):
@@ -56,7 +56,7 @@ def preparetags(toc, delim):
     CLOSERS['_'] = '_'
 
 
-def annotate(text, delim):
+def annotate(text):
     """Annotate the text. That is, generate all of the annotations detailing the
     ranges and nature of the stretch of text. They will be used later to strip
     the markup.
@@ -113,10 +113,10 @@ def strip(text):
 def split(text):
     chunks = []
     sequence = 0
-    for i in range(0, len(text), TEXTSIZE):
+    for i in range(0, len(text), CHUNKSIZE):
         chunks.append({
             'offset': i,
-            'text': text[i:i+TEXTSIZE],
+            'text': text[i:i+CHUNKSIZE],
             'sequence': sequence
         })
         sequence += 1
@@ -137,7 +137,7 @@ def process(text, metadata):
     preparetags(metadata['toc'], delimiter)
     print(TAGS.keys())
     print("Preparing annotations...")
-    annotations = annotate(text, delimiter)
+    annotations = annotate(text)
 
     print("Stripping markup...")
     text = strip(text)
