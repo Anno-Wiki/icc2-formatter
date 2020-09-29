@@ -16,10 +16,7 @@ DELIMITERS = {
 }
 
 # Global tags to be prepared for searching, payload for annotations
-TAGS = {
-    '*': {'type': 'style', 'tag': 'bold'},
-    '_': {'type': 'style', 'tag': 'italics'},
-}
+TAGS = {}
 
 # Matching closer tags for searching
 CLOSERS = {}
@@ -30,7 +27,7 @@ CHUNKSIZE = 100000
 
 def preparetags(toc, delim):
     """Prepare the TAGS dictionary for use in annotating the text."""
-    DELIMITED = ['pre', 'quote', 'quotepre']
+    DELIMITED = ['pre', 'quote', 'quotepre', 'preline', 'i', 'b']
 
     # Add all of the tags with their proper delimiters
     for tag in DELIMITED:
@@ -44,16 +41,14 @@ def preparetags(toc, delim):
     for i, name in enumerate(toc):
         # We have to add one to i because it's 0 indexed, but depth 0 is the
         # book.
-        opener = ''.join([delim[0], str(i+1), delim[1]])
-        closer = ''.join([delim[0], '/', str(i+1), delim[1]])
+        opener = ''.join([delim[0], 'h', str(i+1), delim[1]])
+        closer = ''.join([delim[0], '/', 'h', str(i+1), delim[1]])
         TAGS[opener] = {
             'type': 'toc',
             'depth': i+1,
             'name': name
         }
         CLOSERS[opener] = closer
-    CLOSERS['*'] = r'\*'
-    CLOSERS['_'] = '_'
 
 
 def annotate(text):
@@ -62,33 +57,32 @@ def annotate(text):
     the markup.
     """
     annotations = []
-    regex = '|'.join(TAGS.keys())
-    regex = f'\{regex}'
-    print(f"Opener search string: \"{regex}\"")
+    regex = re.compile('|'.join(list(TAGS.keys()) + list(CLOSERS.values())))
+    print(f"Search string: \"{regex}\"")
 
     offset = 0
     i = 0
+    stack = []
     while m := re.search(regex, text[i:]):
         # Opening tag
         match = m.group(0)
         matchloc = m.start(0)
-        payload = TAGS[match].copy()
-        i += matchloc   # skip to location of the match
-        payload['open'] = i - offset   # subtract the length of tags seen so far
-        i += len(match)     # skip the tag
-        offset += len(match)    # add the tag length to the offset
-
-        # Now closing tag
-        m = re.search(CLOSERS[match], text[i:])
-        match = m.group(0)
-        matchloc = m.start(0)
-        # same as before
-        i += matchloc
-        payload['close'] = i - offset
-        i += len(match)
-        offset += len(match)
-
-        annotations.append(payload)
+        if match in TAGS.keys():
+            payload = TAGS[match].copy()
+            i += matchloc
+            payload['open'] = i - offset
+            i += len(match)
+            offset += len(match)
+            stack.append(payload)
+        elif match in CLOSERS.values():
+            payload = stack.pop()
+            i += matchloc
+            payload['close'] = i - offset
+            i += len(match)
+            offset += len(match)
+            annotations.append(payload)
+        else:
+            raise Error("Yo, this shit broken bruv.")
 
     return annotations
 
@@ -98,10 +92,6 @@ def strip(text):
     # Strip markup
     for tag in TAGS.keys():
         text = text.replace(tag, '')
-
-    # These two are already gone from the previous loop
-    del CLOSERS['*']
-    del CLOSERS['_']
 
     # Strip close tags
     for tag in CLOSERS.values():
