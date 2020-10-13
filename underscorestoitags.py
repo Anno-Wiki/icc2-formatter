@@ -2,12 +2,12 @@ import argparse
 import sys
 
 def main(fin):
-    text = fin.read()
-    s = list(text)
+    with open(fin, 'rt') as f:
+        s = f.read()
 
     close = False
     news = []
-    while i := s.index('_'):
+    while (i := s.find('_')) != -1:
         news.append(s[:i])
         s = s[i+1:]
         if close:
@@ -16,19 +16,15 @@ def main(fin):
             news.append('<i>')
 
         close = not close
-        if not len(news) % 100:
-            print(len(s))
+    news.append(s)
     with open(fin + '.out', 'wt') as fout:
         fout.write(''.join(news))
-
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert markdown underscores"
                                      "to <i> tags")
-    parser.add_argument('fin', metavar='filein', nargs='?',
-                        type=argparse.FileType('rt'), default=sys.stdin,
-                        help="The text file")
+    parser.add_argument('fin', type=str, help="The text file")
     args = parser.parse_args()
 
     main(args.fin)
