@@ -25,7 +25,7 @@ CLOSERS = {}
 CHUNKSIZE = 100000
 
 
-def preparetags(toc, delim):
+def preparetags(toc, delim, bookid):
     """Prepare the TAGS dictionary for use in annotating the text."""
     DELIMITED = ['pre', 'quote', 'quotepre', 'preline', 'i', 'b']
 
@@ -33,7 +33,7 @@ def preparetags(toc, delim):
     for tag in DELIMITED:
         opener = ''.join([delim[0], tag, delim[1]])
         closer = ''.join([delim[0], '/', tag, delim[1]])
-        TAGS[opener] = {'type': 'style', 'tag': tag}
+        TAGS[opener] = {'type': 'style', 'tag': tag, 'bookid': bookid}
         CLOSERS[opener] = closer
 
 
@@ -46,7 +46,8 @@ def preparetags(toc, delim):
         TAGS[opener] = {
             'type': 'toc',
             'depth': i+1,
-            'name': name
+            'name': name,
+            'bookid': bookid
         }
         CLOSERS[opener] = closer
 
@@ -100,18 +101,18 @@ def strip(text):
     return text
 
 
-def split(text):
+def split(text, bookid):
     chunks = []
     sequence = 0
     for i in range(0, len(text), CHUNKSIZE):
         chunks.append({
             'offset': i,
             'text': text[i:i+CHUNKSIZE],
-            'sequence': sequence
+            'sequence': sequence,
+            'bookid': bookid
         })
         sequence += 1
     return chunks
-
 
 
 def process(text, metadata):
@@ -124,41 +125,47 @@ def process(text, metadata):
         delimiter = [md, md]
 
     print('Preparing tags...')
-    preparetags(metadata['toc'], delimiter)
+    preparetags(metadata['toc'], delimiter, metadata['bookid'])
     print(TAGS.keys())
     print("Preparing annotations...")
     annotations = annotate(text)
+    annotations.append({
+        'type': 'toc',
+        'depth': 0,
+        'name': metadata['title'],
+        'bookid': metadata['bookid'],
+        'slug': metadata['slug'],
+    })
 
     print("Stripping markup...")
     text = strip(text)
 
     print("Splitting text into chunks...")
-    text = split(text)
+    text = split(text, metadata['bookid'])
 
     return text, annotations
 
 
-def main(fin, metadata_in):
+def main(din):
     """Main route, to be called when run from command line."""
-    metadata = yaml.load(metadata_in, yaml.CLoader)
-    text = fin.read()
-    fin.close()
+    with open(f'{din}/metadata.yml') as fin:
+        metadata = yaml.load(fin, yaml.CLoader)
+    with open(f'{din}/prepared.icc') as fin:
+        text = fin.read()
     text, annotations = process(text, metadata)
 
-    with open('text.json', 'wt') as fout:
+    with open(f'{din}/text.json', 'wt') as fout:
         json.dump(text, fout)
-    with open('annotations.json', 'wt') as fout:
+    with open(f'{din}/annotations.json', 'wt') as fout:
         json.dump(annotations, fout)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse .icc texts into json"
                                      "files for import into ICC2")
-    parser.add_argument('-m', '--metadata-in', type=argparse.FileType('rt'),
-                        default='metadata.yml', help="The metadata.yml file.")
-    parser.add_argument('fin', metavar='filein', nargs='?',
-                        type=argparse.FileType('rt'), default=sys.stdin,
-                        help="The .icc text file")
+    parser.add_argument('din', metavar='dirin', nargs='?', type=str,
+                        help="The directory containing the prepared.icc file"
+                        "and the metdata.yml file.")
     args = parser.parse_args()
-
-    main(args.fin, args.metadata_in)
+    print(args.din)
+    main(args.din)
