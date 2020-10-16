@@ -63,6 +63,7 @@ def annotate(text):
 
     offset = 0
     i = 0
+    key = 0
     stack = []
     while m := re.search(regex, text[i:]):
         # Opening tag
@@ -81,7 +82,9 @@ def annotate(text):
             payload['close'] = i - offset
             i += len(match)
             offset += len(match)
+            payload['id'] = key
             annotations.append(payload)
+            key += 1
         else:
             raise Error("Yo, this shit broken bruv.")
 
