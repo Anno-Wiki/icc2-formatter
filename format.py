@@ -65,6 +65,7 @@ def annotate(text):
     i = 0
     key = 0
     stack = []
+    tocs = {}
     while m := re.search(regex, text[i:]):
         # Opening tag
         match = m.group(0)
@@ -83,6 +84,13 @@ def annotate(text):
             i += len(match)
             offset += len(match)
             payload['id'] = key
+            if payload['type'] == 'toc':
+                tocs[payload['depth']] = key
+                if payload['depth'] > 1:
+                    payload['parent'] = tocs[payload['depth'] - 1]
+                else:
+                    payload['parent'] = -1
+
             annotations.append(payload)
             key += 1
         else:
@@ -118,6 +126,11 @@ def split(text, bookid):
     return chunks
 
 
+def appendcontent(tocs, text):
+    for toc in tocs:
+        toc['content'] = text[toc['open']:toc['close']]
+
+
 def process(text, metadata):
     """Process route, really the main action of the script."""
     if (md := metadata['delimiter']) in DELIMITERS:
@@ -143,6 +156,11 @@ def process(text, metadata):
 
     print("Stripping markup...")
     text = strip(text)
+
+    tocs = list(filter(lambda l: l['type'] == 'toc' and l['depth'] >= 1,
+                       annotations))
+    print("Appending content to annotations")
+    appendcontent(tocs, text)
 
     print("Splitting text into chunks...")
     text = split(text, metadata['bookid'])
