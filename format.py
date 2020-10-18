@@ -63,7 +63,7 @@ def annotate(text):
 
     offset = 0
     i = 0
-    key = 0
+    key = 1
     stack = []
     tocs = {}
     while m := re.search(regex, text[i:]):
@@ -89,7 +89,7 @@ def annotate(text):
                 if payload['depth'] > 1:
                     payload['parent'] = tocs[payload['depth'] - 1]
                 else:
-                    payload['parent'] = -1
+                    payload['parent'] = 0
 
             annotations.append(payload)
             key += 1
@@ -151,7 +151,7 @@ def process(text, metadata):
         'name': metadata['title'],
         'bookid': metadata['bookid'],
         'slug': metadata['slug'],
-        'id': -1
+        'id': 0
     })
 
     print("Stripping markup...")
