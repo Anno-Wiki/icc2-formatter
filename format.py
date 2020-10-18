@@ -138,6 +138,7 @@ def process(text, metadata):
         'name': metadata['title'],
         'bookid': metadata['bookid'],
         'slug': metadata['slug'],
+        'id': -1
     })
 
     print("Stripping markup...")
