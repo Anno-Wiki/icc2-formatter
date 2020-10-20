@@ -25,7 +25,7 @@ CLOSERS = {}
 CHUNKSIZE = 100000
 
 
-def preparetags(toc, delim, bookid):
+def preparetags(toc, delim, bookid, noshow):
     """Prepare the TAGS dictionary for use in annotating the text."""
     DELIMITED = ['pre', 'quote', 'quotepre', 'preline', 'i', 'b']
 
@@ -47,7 +47,8 @@ def preparetags(toc, delim, bookid):
             'type': 'toc',
             'depth': i+1,
             'name': name,
-            'bookid': bookid
+            'bookid': bookid,
+            'display': i not in noshow,
         }
         CLOSERS[opener] = closer
 
@@ -141,7 +142,7 @@ def process(text, metadata):
         delimiter = [md, md]
 
     print('Preparing tags...')
-    preparetags(metadata['toc'], delimiter, metadata['bookid'])
+    preparetags(metadata['toc'], delimiter, metadata['bookid'], metadata['noshow'])
     print(TAGS.keys())
     print("Preparing annotations...")
     annotations = annotate(text)
