@@ -25,7 +25,7 @@ CLOSERS = {}
 CHUNKSIZE = 100000
 
 
-def preparetags(toc, delim, bookid, noshow):
+def preparetags(metadata, delim):
     """Prepare the TAGS dictionary for use in annotating the text."""
     DELIMITED = ['pre', 'quote', 'quotepre', 'preline', 'i', 'b']
 
@@ -33,12 +33,13 @@ def preparetags(toc, delim, bookid, noshow):
     for tag in DELIMITED:
         opener = ''.join([delim[0], tag, delim[1]])
         closer = ''.join([delim[0], '/', tag, delim[1]])
-        TAGS[opener] = {'type': 'style', 'tag': tag, 'bookid': bookid}
+        TAGS[opener] = {'type': 'style', 'tag': tag,
+                        'bookid': metadata['bookid'], 'slug': metadata['slug']}
         CLOSERS[opener] = closer
 
 
     # Add all of the tocs with delimiters
-    for i, name in enumerate(toc):
+    for i, name in enumerate(metadata['toc']):
         # We have to add one to i because it's 0 indexed, but depth 0 is the
         # book.
         opener = ''.join([delim[0], 'h', str(i+1), delim[1]])
@@ -47,8 +48,9 @@ def preparetags(toc, delim, bookid, noshow):
             'type': 'toc',
             'depth': i+1,
             'name': name,
-            'bookid': bookid,
-            'display': i not in noshow,
+            'bookid': metadata['bookid'],
+            'slug': metadata['slug'],
+            'display': i not in metadata['noshow'],
         }
         CLOSERS[opener] = closer
 
@@ -113,7 +115,7 @@ def strip(text):
     return text
 
 
-def split(text, bookid):
+def split(text, metadata):
     chunks = []
     sequence = 0
     for i in range(0, len(text), CHUNKSIZE):
@@ -121,13 +123,17 @@ def split(text, bookid):
             'offset': i,
             'text': text[i:i+CHUNKSIZE],
             'sequence': sequence,
-            'bookid': bookid
+            'bookid': metadata['bookid'],
+            'slug': metadata['slug'],
         })
         sequence += 1
     return chunks
 
 
 def appendcontent(tocs, text):
+    """Appends the actual content of the toc annotation to the annotation for
+    display purposes.
+    """
     for toc in tocs:
         toc['content'] = text[toc['open']:toc['close']]
 
@@ -142,7 +148,7 @@ def process(text, metadata):
         delimiter = [md, md]
 
     print('Preparing tags...')
-    preparetags(metadata['toc'], delimiter, metadata['bookid'], metadata['noshow'])
+    preparetags(metadata, delimiter)
     print(TAGS.keys())
     print("Preparing annotations...")
     annotations = annotate(text)
@@ -160,11 +166,12 @@ def process(text, metadata):
 
     tocs = list(filter(lambda l: l['type'] == 'toc' and l['depth'] >= 1,
                        annotations))
+
     print("Appending content to annotations")
     appendcontent(tocs, text)
 
     print("Splitting text into chunks...")
-    text = split(text, metadata['bookid'])
+    text = split(text, metadata)
 
     return text, annotations
 
