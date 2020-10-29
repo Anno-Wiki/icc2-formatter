@@ -51,6 +51,7 @@ def preparetags(metadata, delim):
             'bookid': metadata['bookid'],
             'slug': metadata['slug'],
             'display': i not in metadata['noshow'],
+            'linkable': i in metadata['linkable']
         }
         CLOSERS[opener] = closer
 
